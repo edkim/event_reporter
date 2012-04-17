@@ -30,7 +30,7 @@ class EventReporter
         when 'load' then load #add optional parameter        
         when 'queue' then queue_actions(parts[1])
         when 'find' then find(parts[1], parts[2])      
-        when 'help' then help #add optional parameter
+        when 'help' then help(parts[1..-1]) #pass add'l parameters
         else puts "Sorry, I don't know how to #{command}"
       end     
     end
@@ -45,25 +45,6 @@ class EventReporter
     puts "File loaded"
   end
 
-
-  # def print # for debugging purposes
-  #   if @clean_file.nil? # can I use a Before filter for this?
-  #     puts "Please load file first"
-  #   else
-  #     print_headers         
-  #     @clean_file.each do |line|        
-  #       printf line[:first_name] + "\t"
-  #       printf line[:last_name] + "\t"
-  #       printf line[:email_address] + "\t"
-  #       printf line[:homephone] + "\t"
-  #       printf line[:street] + "\t"
-  #       printf line[:city] + "\t"
-  #       printf line[:state] + "\t"
-  #       printf line[:zipcode] + "\n"
-  #     end
-  #     @clean_file.rewind
-  #   end    
-  # end
 
   def printline(line)
     printf line[:first_name] + "\t"
@@ -178,14 +159,26 @@ class EventReporter
     puts
   end
 
-  def help(action="")
-    if action == ""
+  #How do I pass a method to override default?
+  def help(keywords=[])    
+    if keywords==[]
       puts "Available commands:"
-      puts "load"
-      puts "queue"
-      puts "find"      
-    else
-      puts action
+      puts "-load"
+      puts "-queue count"
+      puts "-queue print"
+      puts "-queue clear"
+      puts "-find <attribute> <criteria>"
+      puts "\nFor more help with commands, try help <command>. Ex. 'help queue count'"
+    elsif keywords[1] == "count" then 
+      puts "queue count - prints out the number of rows"
+    elsif keywords[1] == "print" then 
+      puts "queue print - prints out the entire queue"
+    elsif keywords[1] == "clear" then 
+      puts "queue clear - clears the queue"
+    elsif keywords[0] == "find" then 
+      puts "find <attribute> <criteria> - loads the queue with all records"
+      puts "matching the criteria for the given attribute"
+    else puts "Sorry I don't know what you mean"
     end
   end    
 
