@@ -2,26 +2,21 @@
 require "csv"
 
 #Questions
-  #How do I ignore the first column? Can I access 
-  #
-
+  #How do I ignore the first column?
+  #Can I print column + "\t" in a loop?
+  #How to have help method with default "event_attendees.csv" parameter
 
 # Class Definition
 class EventReporter	
-
   INVALID_ZIPCODE = "00000"
 
   def initialize
     puts "EventReporter Initialized."
-    filename = "event_attendees.csv"
-    @file = CSV.open(filename, {:headers => true, :header_converters => :symbol})
-    cleanup_data
-    clean_filename = "event_attendees_clean.csv"
-    @clean_file = CSV.open(clean_filename, {:headers => true, :header_converters => :symbol})
+    @queue = []
   end
 
 
-  #lifted from JSTwitter
+  
   def run
     command = ""
     while command != "q"
@@ -32,54 +27,112 @@ class EventReporter
       command = parts[0]
       case command
         when 'q' then puts "Goodbye!"
-        when 'print' then print     
-        when 'printh' then print_headers
+        when 'load' then load #add optional parameter        
+        when 'queue' then queue_actions(parts[1])
+        when 'find' then find(parts[1], parts[2])      
+        when 'help' then help #add optional parameter
         else puts "Sorry, I don't know how to #{command}"
       end     
     end
   end
 
 
-  def print_headers    
-    #puts @file.gets.each.headers 
-    
-    @clean_file.gets.each do |header, data|
-      printf header.to_s + "\t"
+  def load(filename="event_attendees.csv")
+    @file = CSV.open(filename, {:headers => true, :header_converters => :symbol})
+    @clean_filename = "#{filename}".sub(".csv", "") + "_clean.csv"
+    cleanup_data    
+    @clean_file = CSV.open(@clean_filename, {:headers => true, :header_converters => :symbol})
+    puts "File loaded"
+  end
+
+
+  # def print # for debugging purposes
+  #   if @clean_file.nil? # can I use a Before filter for this?
+  #     puts "Please load file first"
+  #   else
+  #     print_headers         
+  #     @clean_file.each do |line|        
+  #       printf line[:first_name] + "\t"
+  #       printf line[:last_name] + "\t"
+  #       printf line[:email_address] + "\t"
+  #       printf line[:homephone] + "\t"
+  #       printf line[:street] + "\t"
+  #       printf line[:city] + "\t"
+  #       printf line[:state] + "\t"
+  #       printf line[:zipcode] + "\n"
+  #     end
+  #     @clean_file.rewind
+  #   end    
+  # end
+
+  def printline(line)
+    printf line[:first_name] + "\t"
+    printf line[:last_name] + "\t"
+    printf line[:email_address] + "\t"
+    printf line[:homephone] + "\t"
+    printf line[:street] + "\t"
+    printf line[:city] + "\t"
+    printf line[:state] + "\t"
+    printf line[:zipcode] + "\n"
+  end
+
+
+  def queue_actions(action)
+    case action
+      when 'count' then puts @queue.count
+      when 'print' then queue_print
+      when 'clear' then queue_clear
+      else puts "Sorry I don't understand how to queue #{action}"
     end
-    # how do i insert tabs between headers?
+  end
+
+  def queue_print
+    if @queue.empty? 
+      puts "Queue is empty"    
+    else
+      print_headers
+      @queue.each do |line|
+        printline(line)
+      end
+    end
   end
 
 
-  #def print_names
-   # @file.each do |line|
-   #   puts line[:first_name] + "\t" + line[:last_name]
-   # end
-
-   # @file.rewind
-  #end
-
-  def print
-   @clean_file.each do |line|
-     printf line[:regdate] + "\t" 
-     printf line[:first_name] + "\t"
-     printf line[:last_name] + "\t"
-     printf line[:email_address] + "\t"
-     printf line[:homephone] + "\t"
-     printf line[:street] + "\t"
-     printf line[:city] + "\t"
-     printf line[:state] + "\t"
-     printf line[:zipcode] + "\n"
-   end
-   @file.rewind
+  def queue_load(line)
+    @queue << line
   end
+
+  def queue_clear
+    @queue = []
+  end  
+
+  def find(attribute, criteria)
+    # Load the queue with all records matching the criteria for the given attribute. Example usages:
+      # find zipcode 20011
+      # find last_name Johnson
+      # find state VA
+    queue_clear
+    if @clean_file.nil? 
+      puts "Please load file first"
+    else 
+      @clean_file.each do |line|  
+        if line[attribute.to_sym].strip.upcase == criteria.upcase
+          printline(line)
+          queue_load(line)
+        end
+      end
+      @clean_file.rewind
+    end
+  end
+
 
 
   def cleanup_data
-    output = CSV.open("event_attendees_clean.csv", "w")
+    output = CSV.open(@clean_filename, "w")
     @file.each do |line|
       if @file.lineno == 2
         output << line.headers
-        output << line
+        output << line        
       else 
         line[:street] = " " if line[:street].nil?
         line[:city] = " " if line[:city].nil?
@@ -91,7 +144,19 @@ class EventReporter
     end
   end
 
-  
+
+  def clean_number(original)
+    @file.each do |line|
+      number = line[:homephone]
+      clean_number = number.delete(".")
+      clean_number = clean_number.delete(" ")
+      clean_number = clean_number.delete("-")
+      clean_number = clean_number.delete("(")
+      clean_number = clean_number.delete(")")
+      return clean_number
+    end
+  end
+
   def clean_zipcode(zipcode)
     if zipcode.nil?
       zipcode = INVALID_ZIPCODE
@@ -102,71 +167,28 @@ class EventReporter
     else
       # Do Nothing
     end
-
     return zipcode
   end
 
-
-  def print_all_neat
-    @file.each do |line|
-      line.each do |header, data|
-        printf data + "\t" #breaks when it hits null zip code
-      end
-      puts
+  def print_headers   
+    #Is there a better way to start printing at first_name?
+    @clean_file.gets.each do |header, data|
+      printf header.to_s + "\t" if header != :regdate && header!= :_
     end
-
-    @file.rewind
+    puts
   end
 
-
-  #
-  # All Methods below are unmodified from EventManager
-  #
-  def print_numbers
-  	@file.each do |line|
-  		number = line[:homephone]
-  		clean_number = number.delete(".")
-  		clean_number = clean_number.delete(" ")
-  		clean_number = clean_number.delete("-")
-  		clean_number = clean_number.delete("(")
-  		clean_number = clean_number.delete(")")
-  		puts clean_number
-	 end
-  end
-
-  def clean_number(original)
-  	@file.each do |line|
-  		number = line[:homephone]
-  		clean_number = number.delete(".")
-  		clean_number = clean_number.delete(" ")
-  		clean_number = clean_number.delete("-")
-  		clean_number = clean_number.delete("(")
-  		clean_number = clean_number.delete(")")
-  		return clean_number
-	  end
-  end
-
-   def rep_lookup
-    20.times do
-      line = @file.readline
-
-      representative = "unknown"
-      # API Lookup Goes Here
-      legislators = Sunlight::Legislator.all_in_zipcode('02806')
-		
-
-	  names = legislators.collect do |leg|
-		first_name = leg.firstname
-		first_initial = first_name[0]
-		last_name = leg.lastname
-		first_initial + ". " + last_name
-	  end
-	  puts "#{line[:last_name]}, #{line[:first_name]}, #{line[:zipcode]}, #{names.join(", ")}"
-
+  def help(action="")
+    if action == ""
+      puts "Available commands:"
+      puts "load"
+      puts "queue"
+      puts "find"      
+    else
+      puts action
     end
-  end
+  end    
 
-  
 end
 
 # Script
